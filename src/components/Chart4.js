@@ -104,6 +104,7 @@ export default function UniversityScoreBoxplot()
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [tooltip, setTooltip] =  useState(null);
 
   useEffect(() => 
   {
@@ -168,6 +169,17 @@ export default function UniversityScoreBoxplot()
 
   const boxWidth = Math.max(50, plotWidth/(chartData.length*2));
 
+  const showTooltip = (event, title, value) => 
+  {
+    const rect = event.currentTarget.ownerSVGElement.getBoundingClientRect();
+    setTooltip({
+      title,
+      value,
+      x: event.clientX - rect.left + 12,
+      y: event.clientY - rect.top + 12,
+    });
+  };
+
   if (loading) return <div style={{ padding: 24 }}>Loading chart...</div>;
   if (error) return <div style={{ padding:24, color: "crimson" }}>{error}</div>;
 
@@ -182,6 +194,7 @@ export default function UniversityScoreBoxplot()
         width="100%"
         viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
         style={{ border: "1px solid #ddd", borderRadius:12, background: "#fff" }}
+        onMouseLeave={() => setTooltip(null)}
       >
         {Array.from({length:6 }, (_, i) => {
           const value = yMin + (i*(yMax - yMin))/5;
@@ -235,9 +248,32 @@ export default function UniversityScoreBoxplot()
                 y2={yLow}
                 stroke="#333"
                 strokeWidth="2"
+                onMouseEnter={(e) =>
+                  showTooltip(e, `${d.label} whisker range`, `${s.whiskerLow.toFixed(2)} to ${s.whiskerHigh.toFixed(2)}`)
+                }
               />
-              <line x1={centerX-18} x2={centerX+18} y1={yHigh} y2={yHigh} stroke="#333" strokeWidth="2" />
-              <line x1={centerX-18} x2={centerX+18} y1={yLow} y2={yLow} stroke="#333" strokeWidth="2" />
+              <line 
+                x1={centerX-18} 
+                x2={centerX+18} 
+                y1={yHigh} 
+                y2={yHigh} 
+                stroke="#333" 
+                strokeWidth="2" 
+                onMouseEnter={(e) =>
+                    showTooltip(e, `${d.label} upper whisker`, s.whiskerHigh.toFixed(2))
+                  }
+                />
+              <line 
+                x1={centerX-18} 
+                x2={centerX+18} 
+                y1={yLow} 
+                y2={yLow} 
+                stroke="#333" 
+                strokeWidth="2" 
+                onMouseEnter={(e) =>
+                    showTooltip(e, `${d.label} lower whisker`, s.whiskerLow.toFixed(2))
+                  }
+                />
 
               <rect
                 x={centerX - boxWidth/2}
@@ -248,6 +284,13 @@ export default function UniversityScoreBoxplot()
                 fill="#cfe8ff"
                 stroke="#1d4ed8"
                 strokeWidth="2"
+                onMouseEnter={(e) =>
+                  showTooltip(
+                    e,
+                    `${d.label} IQR`,
+                    `Q1: ${s.q1.toFixed(2)} | Q3: ${s.q3.toFixed(2)}`
+                  )
+                }
               />
 
               <line
@@ -257,7 +300,33 @@ export default function UniversityScoreBoxplot()
                 y2={yMedian}
                 stroke="#1d4ed8"
                 strokeWidth="3"
+                onMouseEnter={(e) =>
+                  showTooltip(e, `${d.label} median`, s.median.toFixed(2))
+                }
               />
+
+              <circle
+                  cx={centerX}
+                  cy={yQ1}
+                  r="4"
+                  fill="#10b981"
+                  onMouseEnter={(e) => showTooltip(e, `${d.label} Q1`, s.q1.toFixed(2))}
+              />
+              <circle
+                  cx={centerX}
+                  cy={yQ3}
+                  r="4"
+                  fill="#10b981"
+                  onMouseEnter={(e) => showTooltip(e, `${d.label} Q3`, s.q3.toFixed(2))}
+              />
+              <circle
+                  cx={centerX}
+                  cy={yMedian}
+                  r="4"
+                  fill="#f59e0b"
+                  onMouseEnter={(e) => showTooltip(e, `${d.label} median`, s.median.toFixed(2))}
+              />
+
               {s.outliers.map((v, idx) => (
                 <circle
                   key={idx}
@@ -293,6 +362,23 @@ export default function UniversityScoreBoxplot()
           Score
         </text>
       </svg>
+
+      {tooltip && (
+          <div
+            style={{
+              position: "absolute",
+              left: tooltip.x,
+              top: tooltip.y,
+              background: "rgba(0,0,0,0.85)",
+              color: "#fff",
+              padding: "8px 10px",
+              borderRadius: 8,
+              fontSize: 12,
+              pointerEvents: "none",
+              whiteSpace: "nowrap",}}>
+          <div style={{ fontWeight: "bold", marginBottom: 4 }}>{tooltip.title}</div>
+          <div>{tooltip.value}</div>
+        </div>)}
 
       <div style={{marginTop: 12, color: "#555", fontSize: 13 }}>
       </div>
