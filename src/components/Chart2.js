@@ -6,70 +6,23 @@ class Chart2 extends Component {
   constructor(props) {
     super(props);
 
-this.margin = { top: 40, right: 30, bottom: 50, left: 70 };
-
-    this.state = {
-      viewMode: "zoomed", // "full" | "zoomed"
-    };
+    this.margin = { top: 50, right: 30, bottom: 60, left: 70 };
   }
-
-  // ==========================
-  // Toggle handler
-  // ==========================
-  toggleView = () => {
-    this.setState(
-      prev => ({
-        viewMode: prev.viewMode === "full" ? "zoomed" : "full",
-      }),
-      () => this.drawChart()
-    );
-  };
 
   componentDidMount() {
     this.drawChart();
   }
 
-  componentDidUpdate(prevProps, prevState) {
-    if (prevProps.data !== this.props.data || prevState.viewMode !== this.state.viewMode) {
+  componentDidUpdate(prevProps) {
+    if (prevProps.data !== this.props.data) {
       this.drawChart();
     }
   }
 
-  // ==========================
-  // Regression
-  // ==========================
-  calculateRegression(data) {
-    const n = data.length;
-    if (n === 0) return null;
-
-    let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-
-    data.forEach(d => {
-      sumX += d.qs_academic_rep;
-      sumY += d.qs_citations;
-      sumXY += d.qs_academic_rep * d.qs_citations;
-      sumX2 += d.qs_academic_rep ** 2;
-    });
-
-    const denom = n * sumX2 - sumX * sumX;
-    if (denom === 0) return null;
-
-    const slope = (n * sumXY - sumX * sumY) / denom;
-    const intercept = (sumY - slope * sumX) / n;
-
-    return {
-      predict: (x) => intercept + slope * x
-    };
-  }
-
-  // ==========================
-  // Draw chart
-  // ==========================
   drawChart() {
     const { data } = this.props;
-    const { viewMode } = this.state;
-
     const container = document.getElementById("chart2-container");
+
     if (!data || data.length === 0 || !container) return;
 
     d3.select(container).selectAll("*").remove();
@@ -86,93 +39,57 @@ this.margin = { top: 40, right: 30, bottom: 50, left: 70 };
       .attr("width", containerWidth)
       .attr("height", containerHeight);
 
+    const titleOffset = 30;
+
     const g = svg
       .append("g")
-      .attr("transform", `translate(${this.margin.left},${this.margin.top})`);
+      .attr("transform", `translate(${this.margin.left},${this.margin.top + titleOffset})`);
 
-    // ==========================
-    // DATA (optional filter in zoom mode)
-    // ==========================
-    const filteredData =
-      viewMode === "zoomed"
-        ? data.filter(
-            d =>
-              d.qs_academic_rep >= 60 &&
-              d.qs_academic_rep <= 100 &&
-              d.qs_citations >= 60 &&
-              d.qs_citations <= 100
-          )
-        : data;
+    // FILTER (80–100 ONLY)
+    const filteredData = data.filter(
+      d =>
+        d.qs_academic_rep >= 60 &&
+        d.qs_academic_rep <= 100 &&
+        d.qs_citations >= 60 &&
+        d.qs_citations <= 100
+    );
 
-    // ==========================
-    // FIXED SCALES (toggle aware)
-    // ==========================
-    const xScale =
-      viewMode === "zoomed"
-        ? d3.scaleLinear().domain([80, 100]).range([0, width*0.7])
-        : d3.scaleLinear()
-            .domain(d3.extent(data, d => d.qs_academic_rep))
-            .nice()
-            .range([0, width]);
+    // SCALES
+    const xScale = d3
+      .scaleLinear()
+      .domain([80, 100])
+      .range([0, width]);
 
-    const yScale =
-      viewMode === "zoomed"
-        ? d3.scaleLinear().domain([80, 100]).range([height, 0])
-        : d3.scaleLinear()
-            .domain(d3.extent(data, d => d.qs_citations))
-            .nice()
-            .range([height, 0]);
+    const yScale = d3
+      .scaleLinear()
+      .domain([80, 100])
+      .range([height, 0]);
 
-    // ==========================
     // AXES
-    // ==========================
-    const xAxisGroup = g.append("g")
-      .attr("transform", `translate(0,${height})`);
+    g.append("g")
+      .attr("transform", `translate(0,${height})`)
+      .call(d3.axisBottom(xScale));
 
-    const yAxisGroup = g.append("g");
+    g.append("g")
+      .call(d3.axisLeft(yScale));
 
-    xAxisGroup.call(d3.axisBottom(xScale));
-    yAxisGroup.call(d3.axisLeft(yScale));
+    // Axis labels
+    g.append("text")
+      .attr("x", width / 2)
+      .attr("y", height + 45)
+      .attr("text-anchor", "middle")
+      .attr("font-size", "13px")
+      .text("Academic Reputation");
 
     g.append("text")
-  .attr("x", width / 2)
-  .attr("y", height + 40)
-  .attr("text-anchor", "middle")
-  .attr("font-size", "12px")
-  .attr("fill", "#444")
-  .text("Academic Reputation");
+      .attr("transform", "rotate(-90)")
+      .attr("x", -height / 2)
+      .attr("y", -50)
+      .attr("text-anchor", "middle")
+      .attr("font-size", "13px")
+      .text("Citations");
 
-  g.append("text")
-  .attr("transform", "rotate(-90)")
-  .attr("x", -height / 2)
-  .attr("y", -50)
-  .attr("text-anchor", "middle")
-  .attr("font-size", "12px")
-  .attr("fill", "#444")
-  .text("Citations");
-
-    /*
-    // ==========================
-    // REGRESSION
-    // ==========================
-    const regression = this.calculateRegression(filteredData);
-
-    if (regression) {
-      const [minX, maxX] = xScale.domain();
-
-      g.append("line")
-        .attr("x1", xScale(minX))
-        .attr("y1", yScale(regression.predict(minX)))
-        .attr("x2", xScale(maxX))
-        .attr("y2", yScale(regression.predict(maxX)))
-        .attr("stroke", "#666")
-        .attr("stroke-width", 2)
-        .attr("stroke-dasharray", "5,5");
-    } */
-
-    // ==========================
     // TOOLTIP
-    // ==========================
     const tooltip = d3
       .select(container)
       .append("div")
@@ -185,9 +102,7 @@ this.margin = { top: 40, right: 30, bottom: 50, left: 70 };
       .style("opacity", 0)
       .style("pointer-events", "none");
 
-    // ==========================
     // POINTS
-    // ==========================
     const circles = g.selectAll("circle")
       .data(filteredData)
       .enter()
@@ -205,8 +120,7 @@ this.margin = { top: 40, right: 30, bottom: 50, left: 70 };
         d3.select(this)
           .attr("r", 8)
           .attr("opacity", 1)
-          .attr("stroke", "#000")
-          .attr("stroke-width", 1.5);
+          .attr("stroke", "#000");
 
         const [x, y] = d3.pointer(event, container);
 
@@ -214,12 +128,12 @@ this.margin = { top: 40, right: 30, bottom: 50, left: 70 };
           .style("opacity", 1)
           .style("left", x + 10 + "px")
           .style("top", y - 10 + "px")
-          .html(
-            `<strong>${d.university}</strong><br/>
-             Region: ${d.region}<br/>
-             Academic Rep: ${d.qs_academic_rep}<br/>
-             Citations: ${d.qs_citations}`
-          );
+          .html(`
+            <strong>${d.university}</strong><br/>
+            ${d.region}<br/>
+            Academic Rep: ${d.qs_academic_rep}<br/>
+            Citations: ${d.qs_citations}
+          `);
       })
       .on("mouseout", function () {
         d3.selectAll("circle").attr("opacity", 0.6);
@@ -231,41 +145,19 @@ this.margin = { top: 40, right: 30, bottom: 50, left: 70 };
         tooltip.style("opacity", 0);
       });
 
-    // ==========================
     // TITLE
-    // ==========================
     svg.append("text")
       .attr("x", containerWidth / 2)
-      .attr("y", 20)
+      .attr("y", 25)
       .attr("text-anchor", "middle")
       .attr("font-size", "16px")
-      .attr("font-weight", "bold")
-      .text(
-        `Academic Reputation vs Citations (${viewMode === "zoomed" ? "80–100 View" : "Full View"})`
-      );
+      .attr("font-weight", "600")
+      .text("Academic Reputation vs Citations");
   }
 
   render() {
     return (
       <div style={{ position: "relative" }}>
-        {/* Toggle button */}
-        <button
-          onClick={this.toggleView}
-          style={{
-            position: "absolute",
-            right: 10,
-            top: 10,
-            zIndex: 10,
-            padding: "6px 12px",
-            borderRadius: "6px",
-            border: "1px solid #ccc",
-            background: "#fff",
-            cursor: "pointer"
-          }}
-        >
-          Toggle View
-        </button>
-
         <div id="chart2-container" style={{ position: "relative" }} />
       </div>
     );
