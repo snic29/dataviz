@@ -24,11 +24,7 @@ class Dashboard extends Component {
         country: "all",
         universityType: "all",
         minRank: 1,
-        maxRank: 500,
-        minAcademicRep: 0,
-        maxAcademicRep: 100,
-        minInternationalOutlook: 0,
-        maxInternationalOutlook: 100,
+        maxRank: 300
       },
     };
   }
@@ -56,13 +52,13 @@ class Dashboard extends Component {
     const { data } = this.state;
 
     const filteredData = data.filter((d) => {
-      const rank = d.qs_rank_2026 ?? 9999;
+      const rank = d.qs_rank_2026;
 
       return (
-        rank >= newFilters.minRank &&
-        rank <= newFilters.maxRank &&
+        (rank == null || (rank >= newFilters.minRank && rank <= newFilters.maxRank)) &&
         (newFilters.region === "all" || d.region === newFilters.region) &&
-        (newFilters.country === "all" || d.country === newFilters.country)
+        (newFilters.country === "all" || d.country === newFilters.country) &&
+        (newFilters.universityType === "all" || d.university_type === newFilters.universityType)
       );
     });
 
@@ -80,24 +76,23 @@ class Dashboard extends Component {
     }
 
     return (
-      <div className="dashboard">
+      <div className="dashboard-container">
 
-        {/* HEADER */}
-        <header className="dashboard-header">
+        <div className="dashboard-header">
           <h1>University Rankings Dashboard</h1>
           <p>Global analysis of academic performance and ranking systems</p>
-        </header>
+        </div>
 
-        {/* FILTERS */}
         <FilterPanel
           filters={filters}
           onFilterChange={this.handleFiltersChange}
+          data={filteredData}
         />
 
-        {/* SUMMARY */}
-        <SummaryPanel data={filteredData} />
+        <div style={{ marginBottom: "40px" }}>
+          <SummaryPanel data={filteredData} />
+        </div>
 
-        {/* CHARTS GRID */}
         <div className="charts-grid">
 
           {/* CHART 1 */}
