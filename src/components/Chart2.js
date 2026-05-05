@@ -39,7 +39,7 @@ class Chart2 extends Component {
       .attr("width", containerWidth)
       .attr("height", containerHeight);
 
-    const titleOffset = 30;
+    const titleOffset = 10;
 
     const g = svg
       .append("g")
