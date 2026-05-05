@@ -102,7 +102,7 @@ class Dashboard extends Component {
                 Chart 1: Global Academic Power
               </div>
               <div className="chart-subtitle">
-                How is global academic power nested within regions, and where are the hubs of excellence?
+                How is global academic power nested within regions and countries, and where are the hubs of excellence?
               </div>
             </div>
 
