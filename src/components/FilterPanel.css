@@ -18,29 +18,15 @@
 }
 
 .filter-panel h3::before {
-  content: "⚙️";
   font-size: 1.2em;
 }
 
-/*
 .filter-controls {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 20px;
   margin-bottom: 20px;
   align-items: end;
-} */
-
-.filter-controls {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-  margin-bottom: 20px;
-  align-items: end;
-}
-
-.reset-button {
-  justify-self: end;
 }
 
 .filter-group {
@@ -239,17 +225,10 @@
   background-clip: text;
 }
 
+
 @media (max-width: 768px) {
   .filter-controls {
     grid-template-columns: 1fr;
-  }
-
-  .filter-group select {
-    width: 100%;
-  }
-
-  .filter-actions {
-    justify-content: stretch;
   }
 
   .reset-button {

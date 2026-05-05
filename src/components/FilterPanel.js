@@ -13,11 +13,7 @@ class FilterPanel extends Component {
         country: 'all',
         universityType: 'all',
         minRank: 1,
-        maxRank: 500,
-        minAcademicRep: 0,
-        maxAcademicRep: 100,
-        minInternationalOutlook: 0,
-        maxInternationalOutlook: 100
+        maxRank: 300
       }
     };
   }
@@ -65,11 +61,7 @@ class FilterPanel extends Component {
       country: 'all',
       universityType: 'all',
       minRank: 1,
-      maxRank: 500,
-      minAcademicRep: 0,
-      maxAcademicRep: 100,
-      minInternationalOutlook: 0,
-      maxInternationalOutlook: 100
+      maxRank: 300
     };
 
     this.updateFilters(defaultFilters);
@@ -132,85 +124,79 @@ class FilterPanel extends Component {
 
     return (
       <div className="filter-panel">
-
-        {/* HEADER */}
-        <div className="filter-header">
-          <h3>Filters</h3>
-        </div>
-
-        {/* GRID */}
+        <h3>Filters</h3>
         <div className="filter-controls">
 
-  <div className="filter-group">
-    <label>Region</label>
-    <select
-      value={filters.region}
-      onChange={(e) => this.handleFilterChange('region', e.target.value)}
-    >
-      {regions.map(r => (
-        <option key={r} value={r}>
-          {r === 'all' ? 'All Regions' : r}
-        </option>
-      ))}
-    </select>
-  </div>
+            <div className="filter-group">
+                <label>Region</label>
+                <select
+                value={filters.region}
+                onChange={(e) => this.handleFilterChange('region', e.target.value)}
+                >
+                {regions.map(r => (
+                    <option key={r} value={r}>
+                    {r === 'all' ? 'All Regions' : r}
+                    </option>
+                ))}
+                </select>
+            </div>
 
-  <div className="filter-group">
-    <label>Country</label>
-    <select
-      value={filters.country}
-      onChange={(e) => this.handleFilterChange('country', e.target.value)}
-    >
-      {countries.map(c => (
-        <option key={c} value={c}>
-          {c === 'all' ? 'All Countries' : c}
-        </option>
-      ))}
-    </select>
-  </div>
+            <div className="filter-group">
+                <label>Country</label>
+                <select
+                value={filters.country}
+                onChange={(e) => this.handleFilterChange('country', e.target.value)}
+                >
+                {countries.map(c => (
+                    <option key={c} value={c}>
+                    {c === 'all' ? 'All Countries' : c}
+                    </option>
+                ))}
+                </select>
+            </div>
 
-  <div className="filter-group">
-    <label>Type</label>
-    <select
-      value={filters.universityType}
-      onChange={(e) => this.handleFilterChange('universityType', e.target.value)}
-    >
-      {types.map(t => (
-        <option key={t} value={t}>
-          {t === 'all' ? 'All Types' : t}
-        </option>
-      ))}
-    </select>
-  </div>
+            <div className="filter-group">
+                <label>Type</label>
+                <select
+                value={filters.universityType}
+                onChange={(e) => this.handleFilterChange('universityType', e.target.value)}
+                >
+                {types.map(t => (
+                    <option key={t} value={t}>
+                    {t === 'all' ? 'All Types' : t}
+                    </option>
+                ))}
+                </select>
+            </div>
 
-  <div className="filter-group qs-group">
-    <label>QS Rank</label>
-    <div className="range-inputs">
-      <input
-        type="number"
-        value={filters.minRank}
-        onChange={(e) =>
-          this.handleFilterChange('minRank', Number(e.target.value))
-        }
-      />
-      <span>to</span>
-      <input
-        type="number"
-        value={filters.maxRank}
-        onChange={(e) =>
-          this.handleFilterChange('maxRank', Number(e.target.value))
-        }
-      />
-    </div>
-  </div>
+            <div className="filter-group qs-group">
+                <label>QS Rank</label>
+                <div className="range-inputs">
+                <input
+                    type="number"
+                    value={filters.minRank}
+                    onChange={(e) =>
+                    this.handleFilterChange('minRank', Number(e.target.value))
+                    }
+                />
+                <span>to</span>
+                <input
+                    type="number"
+                    value={filters.maxRank}
+                    onChange={(e) =>
+                    this.handleFilterChange('maxRank', Number(e.target.value))
+                    }
+                />
+                </div>
+            </div>
 
-  <div className="filter-actions">
-    <button className="reset-button" onClick={this.resetFilters}>
-      Reset Filters
-    </button>
-  </div>
+            <div className="filter-actions">
+                <button className="reset-button" onClick={this.resetFilters}>
+                Reset Filters
+                </button>
+            </div>
 
-</div>
+            </div>
 
       </div>
     );
