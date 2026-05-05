@@ -1,4 +1,4 @@
-# University Rankings Analysis Dashboard: Global Analysis of Academic Performance
+# University Rankings Dashboard: Global Analysis of Academic Performance
 
 An interactive web application built with React and D3.js to visualize and analyze 2026 global university rankings and the institutional factors that contribute to academic excellence.
 
