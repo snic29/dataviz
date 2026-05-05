@@ -1,387 +1,233 @@
-import React, {useEffect, useMemo, useState} from "react";
+import React, { Component } from "react";
+import * as d3 from "d3";
 
-function parseCSV(text) {
-  const rows = [];
-  let row = [];
-  let current = "";
-  let inQuotes = false; //so commas in locations are not mistaken in csv
+class Chart4 extends Component {
+  constructor(props) {
+    super(props);
 
-  for (let i = 0; i<text.length; i++) {
-    const char = text[i];
-    const next = text[i+ 1];
-    if (char === '"' && inQuotes && next==='"') 
-    {
-      current += '"';
-      i++;
-    } 
-    else if (char==='"') 
-    {
-      inQuotes = !inQuotes;
-    } 
-    else if (char === "," && !inQuotes) 
-    {
-      row.push(current);
-      current = "";
-    } 
-    else if ((char === "\n" || char === "\r") && !inQuotes) 
-    {
-      if (current.length>0 || row.length>0) 
-      {
-        row.push(current);
-        rows.push(row);
-        row = [];
-        current = "";
-      }
-      if (char === "\r" && next === "\n") i++;
-    } 
-    else 
-    {
-      current += char;
+    this.width = 920;
+    this.height = 520;
+
+    this.margin = {
+      top: 40,
+      right: 40,
+      bottom: 90,
+      left: 70,
+    };
+  }
+
+  componentDidMount() {
+    this.drawChart();
+  }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.data !== this.props.data) {
+      this.drawChart();
     }
   }
 
-  if (current.length>0 || row.length > 0) 
-  {
-    row.push(current);
-    rows.push(row);
+  // ==========================
+  // Stats helpers (unchanged)
+  // ==========================
+  quantile(sorted, p) {
+    const n = sorted.length;
+    if (!n) return null;
+    if (n === 1) return sorted[0];
+
+    const index = (n - 1) * p;
+    const lo = Math.floor(index);
+    const hi = Math.ceil(index);
+    const h = index - lo;
+
+    if (lo === hi) return sorted[lo];
+    return sorted[lo] * (1 - h) + sorted[hi] * h;
   }
 
-  const headers = rows[0].map((h) => h.trim());
-  return rows.slice(1).map((r) => 
-  {
-    const obj = {};
-    headers.forEach((h, i) => 
-    {
-      obj[h] = (r[i] ?? "").trim();
-    });
-    return obj;
-  });
-}
+  getBoxStats(values) {
+    const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
+    if (!sorted.length) return null;
 
-function quantile(sorted, p) 
-{
-  const n = sorted.length;
-  if (!n) return null;
-  if (n===1) return sorted[0];
+    const q1 = this.quantile(sorted, 0.25);
+    const median = this.quantile(sorted, 0.5);
+    const q3 = this.quantile(sorted, 0.75);
+    const iqr = q3 - q1;
 
-  const index = (n-1)*p;
-  const floorVal=Math.floor(index);
-  const ceilingVal = Math.ceil(index);
-  const h = index-floorVal;
+    const low = q1 - 1.5 * iqr;
+    const high = q3 + 1.5 * iqr;
 
-  if (floorVal===ceilingVal) return sorted[floorVal];
-  return sorted[floorVal]*(1-h) + sorted[ceilingVal]*h;
-}
+    return {
+      q1,
+      median,
+      q3,
+      whiskerLow: sorted.find(v => v >= low) ?? sorted[0],
+      whiskerHigh: [...sorted].reverse().find(v => v <= high) ?? sorted.at(-1),
+      outliers: sorted.filter(v => v < low || v > high),
+    };
+  }
 
-function getBoxStats(values) {
-  const sorted = values.filter(Number.isFinite).sort((a, b) => a-b);
-  if (!sorted.length) return null;
-
-  const q1 = quantile(sorted, 0.25);
-  const median = quantile(sorted, 0.5);
-  const q3 = quantile(sorted, 0.75);
-  const iqr = q3-q1;
-  const lowBound = q1 - 1.5*iqr;
-  const highBound = q3 + 1.5*iqr;
-  const whiskerLow = sorted.find((v) => v >= lowBound) ?? sorted[0];
-  const whiskerHigh = [...sorted].reverse().find((v) => v <= highBound) ?? sorted[sorted.length - 1];
-  const outliers = sorted.filter((v) => v<lowBound || v>highBound);
-
-  return {
-    min: sorted[0],
-    max: sorted[sorted.length - 1],
-    q1,
-    median,
-    q3,
-    whiskerLow,
-    whiskerHigh,
-    outliers,
-  };
-}
-
-export default function UniversityScoreBoxplot() 
-{
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [tooltip, setTooltip] =  useState(null);
-
-  useEffect(() => 
-  {
-    async function loadCSV() {
-      try {
-        const res = await fetch("/world_university_rankings_2026.csv");
-        if (!res.ok) throw new Error("not loaded");
-        const text = await res.text();
-        const parsed = parseCSV(text);
-        setData(parsed);
-      } catch (err) {
-        setError(err.message || "error");
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadCSV();
-  }, []);
-
-  const chartData = useMemo(() => {
-    const scoreFields = [
+  // ==========================
+  // Data prep
+  // ==========================
+  processData(data) {
+    const fields = [
       { key: "qs_score", label: "QS Score" },
-      { key: "the_score", label:"THE Score" },
+      { key: "the_score", label: "THE Score" },
       { key: "arwu_score", label: "ARWU Score" },
     ];
 
-    return scoreFields.map(({key,label}) => {
-      const values = data.map((d) => Number(d[key])).filter((v) => Number.isFinite(v));
+    return fields
+      .map(f => {
+        const values = data
+          .map(d => Number(d[f.key]))
+          .filter(Number.isFinite);
 
-      return {
-        key,
-        label,
-        stats: getBoxStats(values),
-      };
-    }).filter((d) => d.stats);
-  }, [data]);
+        return {
+          label: f.label,
+          stats: this.getBoxStats(values),
+        };
+      })
+      .filter(d => d.stats);
+  }
 
-  const dimensions = {
-    width: 920,
-    height: 520,
-    marginTop: 40,
-    marginRight: 40,
-    marginBottom: 90,
-    marginLeft: 70,
-  };
+  drawChart() {
+    const data = this.props.data;
+    const container = document.getElementById("chart4-container");
 
-  const plotWidth = dimensions.width - dimensions.marginLeft - dimensions.marginRight;
-  const plotHeight = dimensions.height - dimensions.marginTop - dimensions.marginBottom;
-  const allValues = chartData.flatMap((d) => [
-    d.stats.whiskerLow,
-    d.stats.whiskerHigh,
-    ...d.stats.outliers,
-  ]);
+    if (!data || data.length === 0 || !container) return;
 
-  const yMin = Math.min(...allValues) - 2;
-  const yMax = Math.max(...allValues) + 2;
-  const yScale = (value) => 
-  {
-    const t = (value - yMin)/(yMax - yMin);
-    return dimensions.marginTop + (1-t)*plotHeight;
-  };
+    d3.select(container).selectAll("*").remove();
 
-  const boxWidth = Math.max(50, plotWidth/(chartData.length*2));
+    const chartData = this.processData(data);
+    if (!chartData.length) return;
 
-  const showTooltip = (event, title, value) => 
-  {
-    const rect = event.currentTarget.ownerSVGElement.getBoundingClientRect();
-    setTooltip({
-      title,
-      value,
-      x: event.clientX - rect.left + 12,
-      y: event.clientY - rect.top + 12,
+    const { width, height, margin } = this;
+
+    const plotWidth = width - margin.left - margin.right;
+    const plotHeight = height - margin.top - margin.bottom;
+
+    const allValues = chartData.flatMap(d => [
+      d.stats.whiskerLow,
+      d.stats.whiskerHigh,
+      ...d.stats.outliers,
+    ]);
+
+    const yScale = d3.scaleLinear()
+      .domain([
+        d3.min(allValues) - 2,
+        d3.max(allValues) + 2
+      ])
+      .range([height - margin.bottom, margin.top]);
+
+    const xScale = d3.scaleBand()
+      .domain(chartData.map(d => d.label))
+      .range([margin.left, width - margin.right])
+      .padding(0.4);
+
+    const svg = d3.select(container)
+      .append("svg")
+      .attr("width", width)
+      .attr("height", height);
+
+    // ==========================
+    // Grid + axis
+    // ==========================
+    svg.append("g")
+      .attr("transform", `translate(${margin.left},0)`)
+      .call(d3.axisLeft(yScale));
+
+    svg.selectAll(".grid")
+      .data(yScale.ticks(6))
+      .enter()
+      .append("line")
+      .attr("x1", margin.left)
+      .attr("x2", width - margin.right)
+      .attr("y1", d => yScale(d))
+      .attr("y2", d => yScale(d))
+      .attr("stroke", "#eee");
+
+    // ==========================
+    // Tooltip
+    // ==========================
+    const tooltip = d3.select(container)
+      .append("div")
+      .style("position", "absolute")
+      .style("background", "rgba(0,0,0,0.85)")
+      .style("color", "#fff")
+      .style("padding", "8px")
+      .style("border-radius", "6px")
+      .style("font-size", "12px")
+      .style("opacity", 0);
+
+    // ==========================
+    // Draw boxplots
+    // ==========================
+    chartData.forEach(d => {
+      const x = xScale(d.label) + xScale.bandwidth() / 2;
+      const s = d.stats;
+
+      // whisker line
+      svg.append("line")
+        .attr("x1", x)
+        .attr("x2", x)
+        .attr("y1", yScale(s.whiskerLow))
+        .attr("y2", yScale(s.whiskerHigh))
+        .attr("stroke", "#333");
+
+      // box
+      svg.append("rect")
+        .attr("x", x - 25)
+        .attr("y", yScale(s.q3))
+        .attr("width", 50)
+        .attr("height", Math.max(1, yScale(s.q1) - yScale(s.q3)))
+        .attr("fill", "#cfe8ff")
+        .attr("stroke", "#1d4ed8");
+
+      // median
+      svg.append("line")
+        .attr("x1", x - 25)
+        .attr("x2", x + 25)
+        .attr("y1", yScale(s.median))
+        .attr("y2", yScale(s.median))
+        .attr("stroke", "#1d4ed8")
+        .attr("stroke-width", 3);
+
+      // outliers
+      svg.selectAll(`.out-${d.label}`)
+        .data(s.outliers)
+        .enter()
+        .append("circle")
+        .attr("cx", x)
+        .attr("cy", v => yScale(v))
+        .attr("r", 4)
+        .attr("fill", "#ef4444");
+
+      // label
+      svg.append("text")
+        .attr("x", x)
+        .attr("y", height - margin.bottom + 30)
+        .attr("text-anchor", "middle")
+        .text(d.label);
     });
-  };
 
-  if (loading) return <div style={{ padding: 24 }}>Loading chart...</div>;
-  if (error) return <div style={{ padding:24, color: "crimson" }}>{error}</div>;
+    // ==========================
+    // Title
+    // ==========================
+    svg.append("text")
+      .attr("x", width / 2)
+      .attr("y", 25)
+      .attr("text-anchor", "middle")
+      .attr("font-size", "16px")
+      .attr("font-weight", "bold")
+      .text("University Score Distribution");
+  }
 
-  return (
-    <div style={{width:"100%", maxWidth:980, margin: "0 auto", padding: 24, fontFamily: "Arial, sans-serif"}}>
-      <h2 style={{ marginBottom: 8 }}>University Score Distribution</h2>
-      <p style={{ marginTop:0, marginBottom:18, color: "#555"}}>
-        Boxplot featuring QS, THE, and ARWU scores for universities.
-      </p>
-
-      <svg
-        width="100%"
-        viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
-        style={{ border: "1px solid #ddd", borderRadius:12, background: "#fff" }}
-        onMouseLeave={() => setTooltip(null)}
-      >
-        {Array.from({length:6 }, (_, i) => {
-          const value = yMin + (i*(yMax - yMin))/5;
-          const y = yScale(value);
-          return (
-            <g key={i}>
-              <line
-                x1={dimensions.marginLeft}
-                x2={dimensions.width - dimensions.marginRight}
-                y1={y}
-                y2={y}
-                stroke="#eee"
-              />
-              <text
-                x={dimensions.marginLeft-12}
-                y={y+4}
-                textAnchor="end"
-                fontSize="12"
-                fill="#666"
-              >
-                {value.toFixed(0)}
-              </text>
-            </g>
-          );
-        })}
-
-        {/* y-axis */}
-        <line
-          x1={dimensions.marginLeft}
-          x2={dimensions.marginLeft}
-          y1={dimensions.marginTop}
-          y2={dimensions.height-dimensions.marginBottom}
-          stroke="#333"
-        />
-
-        {chartData.map((d, i) => {
-          const centerX = dimensions.marginLeft + (i+0.5)*(plotWidth/chartData.length);
-          const s = d.stats;
-          const yLow = yScale(s.whiskerLow);
-          const yHigh = yScale(s.whiskerHigh);
-          const yQ1 = yScale(s.q1);
-          const yQ3 = yScale(s.q3);
-          const yMedian = yScale(s.median);
-
-          return (
-            <g key={d.key}>
-              <line
-                x1={centerX}
-                x2={centerX}
-                y1={yHigh}
-                y2={yLow}
-                stroke="#333"
-                strokeWidth="2"
-                onMouseEnter={(e) =>
-                  showTooltip(e, `${d.label} whisker range`, `${s.whiskerLow.toFixed(2)} to ${s.whiskerHigh.toFixed(2)}`)
-                }
-              />
-              <line 
-                x1={centerX-18} 
-                x2={centerX+18} 
-                y1={yHigh} 
-                y2={yHigh} 
-                stroke="#333" 
-                strokeWidth="2" 
-                onMouseEnter={(e) =>
-                    showTooltip(e, `${d.label} upper whisker`, s.whiskerHigh.toFixed(2))
-                  }
-                />
-              <line 
-                x1={centerX-18} 
-                x2={centerX+18} 
-                y1={yLow} 
-                y2={yLow} 
-                stroke="#333" 
-                strokeWidth="2" 
-                onMouseEnter={(e) =>
-                    showTooltip(e, `${d.label} lower whisker`, s.whiskerLow.toFixed(2))
-                  }
-                />
-
-              <rect
-                x={centerX - boxWidth/2}
-                y={yQ3}
-                width={boxWidth}
-                height={Math.max(1, yQ1-yQ3)}
-                rx="8"
-                fill="#cfe8ff"
-                stroke="#1d4ed8"
-                strokeWidth="2"
-                onMouseEnter={(e) =>
-                  showTooltip(
-                    e,
-                    `${d.label} IQR`,
-                    `Q1: ${s.q1.toFixed(2)} | Q3: ${s.q3.toFixed(2)}`
-                  )
-                }
-              />
-
-              <line
-                x1={centerX - boxWidth/2}
-                x2={centerX + boxWidth/2}
-                y1={yMedian}
-                y2={yMedian}
-                stroke="#1d4ed8"
-                strokeWidth="3"
-                onMouseEnter={(e) =>
-                  showTooltip(e, `${d.label} median`, s.median.toFixed(2))
-                }
-              />
-
-              <circle
-                  cx={centerX}
-                  cy={yQ1}
-                  r="4"
-                  fill="#10b981"
-                  onMouseEnter={(e) => showTooltip(e, `${d.label} Q1`, s.q1.toFixed(2))}
-              />
-              <circle
-                  cx={centerX}
-                  cy={yQ3}
-                  r="4"
-                  fill="#10b981"
-                  onMouseEnter={(e) => showTooltip(e, `${d.label} Q3`, s.q3.toFixed(2))}
-              />
-              <circle
-                  cx={centerX}
-                  cy={yMedian}
-                  r="4"
-                  fill="#f59e0b"
-                  onMouseEnter={(e) => showTooltip(e, `${d.label} median`, s.median.toFixed(2))}
-              />
-
-              {s.outliers.map((v, idx) => (
-                <circle
-                  key={idx}
-                  cx={centerX}
-                  cy={yScale(v)}
-                  r="4"
-                  fill="#ef4444"
-                  opacity="0.85"
-                />
-              ))}
-
-              <text
-                x={centerX}
-                y={dimensions.height-dimensions.marginBottom+28}
-                textAnchor="middle"
-                fontSize="13"
-                fill="#222"
-              >
-                {d.label}
-              </text>
-            </g>
-          );
-        })}
-
-        <text
-          x={18}
-          y={dimensions.marginTop + plotHeight/2}
-          transform={`rotate(-90 18 ${dimensions.marginTop + plotHeight/2})`}
-          textAnchor="middle"
-          fontSize="13"
-          fill="#222"
-        >
-          Score
-        </text>
-      </svg>
-
-      {tooltip && (
-          <div
-            style={{
-              position: "absolute",
-              left: tooltip.x,
-              top: tooltip.y,
-              background: "rgba(0,0,0,0.85)",
-              color: "#fff",
-              padding: "8px 10px",
-              borderRadius: 8,
-              fontSize: 12,
-              pointerEvents: "none",
-              whiteSpace: "nowrap",}}>
-          <div style={{ fontWeight: "bold", marginBottom: 4 }}>{tooltip.title}</div>
-          <div>{tooltip.value}</div>
-        </div>)}
-
-      <div style={{marginTop: 12, color: "#555", fontSize: 13 }}>
+  render() {
+    return (
+      <div>
+        <div id="chart4-container" style={{ position: "relative" }}></div>
       </div>
-    </div>
-  );
+    );
+  }
 }
+
+export default Chart4;
