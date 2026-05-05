@@ -127,10 +127,10 @@ class Dashboard extends Component {
           <div className="chart-container">
             <div className="chart-header-box">
               <div className="chart-title">
-                Chart 3: Regional Specialists
+                Chart 3: Regional Specialization
               </div>
               <div className="chart-subtitle">
-                Which regions specialize in industry income vs international outlook?
+                Which regions specialize across key dimensions of university performance?
               </div>
             </div>
 

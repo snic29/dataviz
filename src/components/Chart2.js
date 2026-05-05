@@ -151,7 +151,7 @@ class Chart2 extends Component {
       .attr("y", 25)
       .attr("text-anchor", "middle")
       .attr("font-size", "16px")
-      .attr("font-weight", "600")
+      .attr("font-weight", "bold")
       .text("Academic Reputation vs Citations");
   }
 
