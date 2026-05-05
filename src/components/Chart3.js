@@ -119,15 +119,15 @@ class Chart3 extends Component {
         // TOOLTIP (FIXED)
         // ==========================
         const tooltip = d3.select(container)
-    .append("div")
-    .style("position", "absolute")
-    .style("background", "rgba(0,0,0,0.8)")
-    .style("color", "#fff")
-    .style("padding", "8px")
-    .style("border-radius", "6px")
-    .style("font-size", "12px")
-    .style("opacity", 0)
-    .style("pointer-events", "none");
+            .append("div")
+            .style("position", "absolute")
+            .style("background", "rgba(0,0,0,0.8)")
+            .style("color", "#fff")
+            .style("padding", "8px")
+            .style("border-radius", "6px")
+            .style("font-size", "12px")
+            .style("opacity", 0)
+            .style("pointer-events", "none");
 
         // ==========================
         // CELLS
@@ -163,12 +163,12 @@ class Chart3 extends Component {
                     `);
             })
             .on("mousemove", (event) => {
-    const [x, y] = d3.pointer(event, container);
+                const [x, y] = d3.pointer(event, container);
 
-    tooltip
-        .style("left", x + 12 + "px")
-        .style("top", y + 12 + "px");
-})
+                tooltip
+                    .style("left", x + 12 + "px")
+                    .style("top", y + 12 + "px");
+            })
             .on("mouseout", () => {
                 tooltip.style("opacity", 0);
             });
