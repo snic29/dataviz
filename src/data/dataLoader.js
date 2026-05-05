@@ -2,8 +2,7 @@ import * as d3 from 'd3';
 
 export const loadUniversityData = async () => {
   try {
-    const data = await d3.csv('/world_university_rankings_2026.csv');
-    return data.map(d => ({
+    const data = await d3.csv(process.env.PUBLIC_URL + '/world_university_rankings_2026.csv');    return data.map(d => ({
       ...d,
       qs_rank_2026: +d.qs_rank_2026 || null,
       the_rank_2026: +d.the_rank_2026 || null,
