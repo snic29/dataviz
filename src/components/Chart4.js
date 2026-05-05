@@ -102,9 +102,6 @@ class Chart4 extends Component {
 
     const { width, height, margin } = this;
 
-    const plotWidth = width - margin.left - margin.right;
-    const plotHeight = height - margin.top - margin.bottom;
-
     const allValues = chartData.flatMap(d => [
       d.stats.whiskerLow,
       d.stats.whiskerHigh,
@@ -128,9 +125,7 @@ class Chart4 extends Component {
       .attr("width", width)
       .attr("height", height);
 
-    // ==========================
     // Grid + axis
-    // ==========================
     svg.append("g")
       .attr("transform", `translate(${margin.left},0)`)
       .call(d3.axisLeft(yScale));
@@ -145,9 +140,7 @@ class Chart4 extends Component {
       .attr("y2", d => yScale(d))
       .attr("stroke", "#eee");
 
-    // ==========================
     // Tooltip
-    // ==========================
     const tooltip = d3.select(container)
       .append("div")
       .style("position", "absolute")
@@ -158,9 +151,7 @@ class Chart4 extends Component {
       .style("font-size", "12px")
       .style("opacity", 0);
 
-    // ==========================
     // Draw boxplots
-    // ==========================
     chartData.forEach(d => {
       const x = xScale(d.label) + xScale.bandwidth() / 2;
       const s = d.stats;
@@ -192,14 +183,30 @@ class Chart4 extends Component {
         .attr("stroke-width", 3);
 
       // outliers
-      svg.selectAll(`.out-${d.label}`)
+      svg.selectAll(`.out-${d.label.replace(/\s+/g, "-")}`)
         .data(s.outliers)
         .enter()
         .append("circle")
         .attr("cx", x)
         .attr("cy", v => yScale(v))
         .attr("r", 4)
-        .attr("fill", "#ef4444");
+        .attr("fill", "#ef4444")
+        .on("mouseover", (event, v) => {
+          tooltip
+            .style("opacity", 1)
+            .html(`
+        <strong>${d.label}</strong><br/>
+        Outlier Score: ${v.toFixed(2)}
+      `);
+        })
+        .on("mousemove", (event) => {
+          tooltip
+            .style("left", event.offsetX + 10 + "px")
+            .style("top", event.offsetY + 10 + "px");
+        })
+        .on("mouseout", () => {
+          tooltip.style("opacity", 0);
+        });
 
       // label
       svg.append("text")
@@ -209,9 +216,7 @@ class Chart4 extends Component {
         .text(d.label);
     });
 
-    // ==========================
     // Title
-    // ==========================
     svg.append("text")
       .attr("x", width / 2)
       .attr("y", 25)
